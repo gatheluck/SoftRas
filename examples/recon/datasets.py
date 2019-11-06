@@ -209,8 +209,8 @@ class PtnShapeNet(object):
         masks_a = torch.from_numpy(self.masks[data_ids_a].astype('float32') / 255.).permute(0,3,1,2)
         masks_b = torch.from_numpy(self.masks[data_ids_b].astype('float32') / 255.).permute(0,3,1,2)
 
-        masks_a = torch.where(masks_a>=0.25, torch.ones_like(images_a), torch.zeros_like(images_a))
-        masks_b = torch.where(masks_b>=0.25, torch.ones_like(images_b), torch.zeros_like(images_b))
+        masks_a = torch.where(masks_a>=0.25, torch.ones_like(masks_a), torch.zeros_like(masks_a))
+        masks_b = torch.where(masks_b>=0.25, torch.ones_like(masks_b), torch.zeros_like(masks_b))
 
         images_a = torch.where(masks_a>=0.25, images_a, torch.zeros_like(images_a))
         images_b = torch.where(masks_b>=0.25, images_b, torch.zeros_like(images_b))
