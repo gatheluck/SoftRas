@@ -107,8 +107,8 @@ def train():
         viewpoints_a = viewpoints_a.cuda()
         viewpoints_b = viewpoints_b.cuda()
 
-        print("images_a:", images_a.shape) # torch.Size([64, 4, 64, 64])
-        print("viewpoints_a:", viewpoints_a.shape) # viewpoints_a: torch.Size([64, 3])
+        #print("images_a:", images_a.shape) # torch.Size([64, 4, 64, 64])
+        #print("viewpoints_a:", viewpoints_a.shape) # viewpoints_a: torch.Size([64, 3])
 
         # soft render images
         render_images, laplacian_loss, flatten_loss = model([images_a, images_b], 
