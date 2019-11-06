@@ -13,9 +13,8 @@ import time
 import os
 
 CLASS_IDS_ALL = (
-    '02691156')
-    # '02691156,02828884,02933112,02958343,03001627,03211117,03636649,' +
-    # '03691459,04090263,04256520,04379243,04401088,04530566')
+    '02691156,02828884,02933112,02958343,03001627,03211117,03636649,' +
+    '03691459,04090263,04256520,04379243,04401088,04530566')
 
 BATCH_SIZE = 64
 LEARNING_RATE = 1e-4
@@ -101,24 +100,22 @@ def train():
         model.set_sigma(adjust_sigma(args.sigma_val, i))
 
         # load images from multi-view
-        images_a, images_b, viewpoints_a, viewpoints_b = dataset_train.get_random_batch(args.batch_size)
+        images_a, _, viewpoints_a, _ = dataset_train.get_random_batch(args.batch_size)
         images_a = images_a.cuda()
-        images_b = images_b.cuda()
         viewpoints_a = viewpoints_a.cuda()
-        viewpoints_b = viewpoints_b.cuda()
 
-        print("images_a:", images_a.shape) # torch.Size([64, 4, 64, 64])
-        print("viewpoints_a:", viewpoints_a.shape) # viewpoints_a: torch.Size([64, 3])
+        #print("images_a:", images_a.shape) # torch.Size([64, 4, 64, 64])
+        #print("viewpoints_a:", viewpoints_a.shape) # viewpoints_a: torch.Size([64, 3])
 
         # soft render images
-        render_images, laplacian_loss, flatten_loss = model([images_a, images_b], 
-                                                            [viewpoints_a, viewpoints_b],
+        render_images, laplacian_loss, flatten_loss = model([images_a, images_a], 
+                                                            [viewpoints_a, viewpoints_a],
                                                             task='train')
         laplacian_loss = laplacian_loss.mean()
         flatten_loss = flatten_loss.mean()
 
         # compute loss
-        loss = multiview_iou_loss(render_images, images_a, images_b) + \
+        loss = multiview_iou_loss(render_images, images_a, images_a) + \
                args.lambda_laplacian * laplacian_loss + \
                args.lambda_flatten * flatten_loss
         losses.update(loss.data.item(), images_a.size(0))
