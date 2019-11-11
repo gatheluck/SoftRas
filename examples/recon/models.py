@@ -7,6 +7,9 @@ import soft_renderer as sr
 import soft_renderer.functional as srf
 import math
 
+import open3d
+
+from skimage import measure
 
 class Encoder(nn.Module):
     def __init__(self, dim_in=4, dim_out=512, dim1=64, dim2=1024, im_size=64):
@@ -160,16 +163,83 @@ class Model(nn.Module):
     def evaluate_iou(self, images, voxels):
         vertices, faces = self.reconstruct(images)
 
+        # print("vertices:", vertices.shape) # torch.Size([100, 642, 3])
+
         # print("torch.mean(vertices, dim=1)")
         # print(torch.mean(vertices, dim=[0,1]))
         # print(torch.max(vertices)) # 0.5
         # print(torch.min(vertices)) # -0.5
 
+        #print("voxels: ", voxels.shape) # voxels:  (100, 32, 32, 32) 
+
+        ### 3D IoU ###
         faces_ = srf.face_vertices(vertices, faces).data
         faces_norm = faces_ * 1. * (32. - 1) / 32. + 0.5
         voxels_predict = srf.voxelization(faces_norm, 32, False).cpu().numpy()
         voxels_predict = voxels_predict.transpose(0, 2, 1, 3)[:, :, :, ::-1]
         iou = (voxels * voxels_predict).sum((1, 2, 3)) / (0 < (voxels + voxels_predict)).sum((1, 2, 3))
+        
+        
+        ### F score ###
+        # voxel to ptc
+        # for i in range(voxels.shape[0]):
+        #     voxel = voxels[i, ...] # (32, 32, 32)
+
+        #     vert_gt, face, _, _ = measure.marching_cubes_lewiner(voxel, 0)
+        #     vert_gt = torch.from_numpy(vert_gt.copy()).float()
+        #     vert_pr = vertices[i,:,:].detach().cpu()
+
+        #     vert_gt = (vert_gt / 32.0) - 0.5
+        #     flip_z = torch.tensor([[1,0,0],[0,1,0],[0,0,-1]]).float()
+        #     vert_gt = torch.matmul(vert_gt, flip_z)
+        #     vert_gt = torch.stack([vert_gt[:,1], vert_gt[:,0], vert_gt[:,2]], dim=-1)
+
+        #     face_gt = faces[i,:,:]
+        #     srf.save_obj('./vert_gt_{:03d}.obj'.format(i), vert_gt.float(), torch.from_numpy(face.copy()).long())
+        #     srf.save_obj('./vert_pr_{:03d}.obj'.format(i), vert_pr.float(), face_gt.long())
+
+        #     print("vert_gt: ", vert_gt.shape)
+        #     print("vert_pr: ", vert_pr.shape)
+
+        #     print("torch.max(vert_gt): ", torch.max(vert_gt))
+        #     print("torch.max(vert_pr): ", torch.max(vert_pr))
+
+        #     print("torch.min(vert_gt): ", torch.min(vert_gt))
+        #     print("torch.min(vert_pr): ", torch.min(vert_pr))
+
+        #     pcd_gt = open3d.geometry.PointCloud()
+        #     pcd_gt.points = open3d.Vector3dVector(vert_gt)
+
+        #     pcd_pr = open3d.geometry.PointCloud()
+        #     pcd_pr.points = open3d.Vector3dVector(vert_pr)
+
+        #     d1 = open3d.geometry.compute_point_cloud_to_point_cloud_distance(pcd_gt, pcd_pr)
+        #     d2 = open3d.geometry.compute_point_cloud_to_point_cloud_distance(pcd_pr, pcd_gt)
+            
+        #     th = 0.01
+
+        #     if len(d1) and len(d2):
+        #         recall = float(sum(d < th for d in d2)) / float(len(d2))
+        #         precision = float(sum(d < th for d in d1)) / float(len(d1))
+
+        #         if recall+precision > 0:
+        #             fscore = 2 * recall * precision / (recall + precision)
+        #         else:
+        #             fscore = 0
+        #     else:
+        #         fscore = 0
+        #         precision = 0
+        #         recall = 0
+            
+        #     print(fscore)
+
+        #     if i == 10: break
+            #raise NotImplementedError
+
+        
+        
+        
+        
         return iou, vertices, faces
 
     def forward(self, images=None, viewpoints=None, voxels=None, task='train'):
