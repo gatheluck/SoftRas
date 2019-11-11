@@ -2,6 +2,7 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
+import neural_renderer as nr
 import soft_renderer as sr
 import soft_renderer.functional as srf
 import math
@@ -93,11 +94,22 @@ class Model(nn.Module):
 
         self.encoder = Encoder(im_size=args.image_size)
         self.decoder = Decoder(filename_obj)
-        self.renderer = sr.SoftRenderer(image_size=args.image_size, sigma_val=args.sigma_val, 
-                                        aggr_func_rgb='hard', camera_mode='look_at', viewing_angle=15,
-                                        dist_eps=1e-10)
+        if args.renderer_type == 'softras':
+            self.renderer = sr.SoftRenderer(image_size=args.image_size, sigma_val=args.sigma_val, 
+                                            aggr_func_rgb='hard', camera_mode='look_at', viewing_angle=15,
+                                            dist_eps=1e-10)
+        elif args.renderer_type == 'nmr':
+            self.renderer = nr.Renderer(image_size=args.image_size, camera_mode='look_at',  viewing_angle=15)
+            #self.renderer.eye = [0, 0, -2.732]
+
+        else:
+            raise NotImplementedError
+
         self.laplacian_loss = sr.LaplacianLoss(self.decoder.vertices_base, self.decoder.faces)
         self.flatten_loss = sr.FlattenLoss(self.decoder.faces)
+
+        self.renderer_type = args.renderer_type
+        self.transform = args.transform
 
     def model_param(self):
         return list(self.encoder.parameters()) + list(self.decoder.parameters())
@@ -115,7 +127,12 @@ class Model(nn.Module):
         images = torch.cat((image_a, image_b), dim=0)
         # [Va, Va, Vb, Vb], set viewpoints
         viewpoints = torch.cat((viewpoint_a, viewpoint_a, viewpoint_b, viewpoint_b), dim=0)
-        self.renderer.transform.set_eyes(viewpoints)
+        
+        if self.renderer_type == 'softras':
+            self.renderer.transform.set_eyes(viewpoints)
+        elif self.renderer_type == 'nmr':
+            self.transform.set_eyes(viewpoints)
+
 
         vertices, faces = self.reconstruct(images)
         laplacian_loss = self.laplacian_loss(vertices)
@@ -125,12 +142,28 @@ class Model(nn.Module):
         vertices = torch.cat((vertices, vertices), dim=0)
         faces = torch.cat((faces, faces), dim=0)
 
+        # print(vertices.shape) # torch.Size([256, 642, 3])
+
         # [Raa, Rba, Rab, Rbb], cross render multiview images
-        silhouettes = self.renderer(vertices, faces)
+        if self.renderer_type == 'softras':
+            silhouettes = self.renderer(vertices, faces)
+            #print(silhouettes.shape) # torch.Size([256, 4, 64, 64])
+        elif self.renderer_type == 'nmr':
+            # transform vert
+            vertices = self.transform.transformer(vertices)
+            silhouettes = self.renderer(vertices, faces, mode='silhouettes')
+            silhouettes = silhouettes.unsqueeze(1).repeat(1,4,1,1) # this operation adjust output size of nmr to softras
+            #print(silhouettes.shape) # torch.Size([256, 4, 64, 64])
+
         return silhouettes.chunk(4, dim=0), laplacian_loss, flatten_loss
 
     def evaluate_iou(self, images, voxels):
         vertices, faces = self.reconstruct(images)
+
+        # print("torch.mean(vertices, dim=1)")
+        # print(torch.mean(vertices, dim=[0,1]))
+        # print(torch.max(vertices)) # 0.5
+        # print(torch.min(vertices)) # -0.5
 
         faces_ = srf.face_vertices(vertices, faces).data
         faces_norm = faces_ * 1. * (32. - 1) / 32. + 0.5
