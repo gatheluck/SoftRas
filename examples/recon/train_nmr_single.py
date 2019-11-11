@@ -134,7 +134,7 @@ def train():
         flatten_loss = flatten_loss.mean()
 
         # compute loss
-        loss = multiview_iou_loss(render_images, images_a, images_b) + \
+        loss = multiview_iou_loss(render_images, images_a, images_a) + \
                args.lambda_laplacian * laplacian_loss + \
                args.lambda_flatten * flatten_loss
         losses.update(loss.data.item(), images_a.size(0))
