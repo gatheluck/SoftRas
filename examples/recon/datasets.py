@@ -52,6 +52,8 @@ class ShapeNet(object):
         images = np.ascontiguousarray(images)
         self.images = images
         self.voxels = np.ascontiguousarray(np.concatenate(voxels, axis=0))
+        if len(self.class_ids)!=1: raise ValueError
+        self.fixed_viewpoints = [np.random.randint(0, 24) for i in range(self.num_data[class_id])]
         del images
         del voxels
 
@@ -59,6 +61,26 @@ class ShapeNet(object):
     def class_ids_pair(self):
         class_names = [self.class_ids_map[i] for i in self.class_ids]
         return zip(self.class_ids, class_names)
+
+    def get_random_batch_fixedview(self, batch_size):
+        data_ids      = np.zeros(batch_size, 'int32')
+        viewpoint_ids = torch.zeros(batch_size)
+        for i in range(batch_size):
+            class_id = np.random.choice(self.class_ids)
+            object_id = np.random.randint(0, self.num_data[class_id])
+            
+            data_id = (object_id + self.pos[class_id]) * 24 + self.fixed_viewpoints[object_id]
+            data_ids[i] = data_id
+            viewpoint_ids[i] = self.fixed_viewpoints[object_id]
+
+        images = torch.from_numpy(self.images[data_ids].astype('float32') / 255.)
+
+        distances = torch.ones(batch_size).float() * self.distance
+        elevations = torch.ones(batch_size).float() * self.elevation
+        
+        viewpoints = srf.get_points_from_angles(distances, elevations, -viewpoint_ids * 15)
+
+        return images, viewpoints
 
     def get_random_batch(self, batch_size):
         data_ids_a = np.zeros(batch_size, 'int32')
@@ -101,6 +123,11 @@ class ShapeNet(object):
         for i in range((data_ids.size - 1) // batch_size + 1):
             images = torch.from_numpy(self.images[data_ids[i * batch_size:(i + 1) * batch_size]].astype('float32') / 255.)
             voxels = torch.from_numpy(self.voxels[data_ids[i * batch_size:(i + 1) * batch_size] // 24].astype('float32'))
+            
+            #print(images.shape) # torch.Size([100, 4, 64, 64])
+            #torchvision.utils.save_image(images[:,0:3,:,:], 'images_rgb_ex.png')
+            #torchvision.utils.save_image(images[:,-1,:,:].unsqueeze(1), 'images_mask_ex.png')
+            raise NotImplementedError
             yield images, voxels
 
 

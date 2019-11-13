@@ -118,7 +118,7 @@ def train():
         #model.set_sigma(adjust_sigma(args.sigma_val, i))
 
         # load images from multi-view
-        images_a, _, viewpoints_a, _ = dataset_train.get_random_batch(args.batch_size)
+        images_a, viewpoints_a = dataset_train.get_random_batch_fixedview(args.batch_size)
         images_a = images_a.cuda()
         viewpoints_a = viewpoints_a.cuda()
 
