@@ -10,7 +10,7 @@ class SoftRasterizeFunction(Function):
 
     @staticmethod
     def forward(ctx, face_vertices, textures, image_size=256, 
-                background_color=[0, 0, 0], near=1, far=100, 
+                background_color=[0, 0, 0], near=1e-6, far=100, 
                 fill_back=True, eps=1e-3,
                 sigma_val=1e-5, dist_func='euclidean', dist_eps=1e-4,
                 gamma_val=1e-4, aggr_func_rgb='softmax', aggr_func_alpha='prod',
@@ -99,7 +99,7 @@ class SoftRasterizeFunction(Function):
 
 
 def soft_rasterize(face_vertices, textures, image_size=256, 
-                   background_color=[0, 0, 0], near=1, far=100, 
+                   background_color=[0, 0, 0], near=1e-6, far=100, 
                    fill_back=True, eps=1e-3,
                    sigma_val=1e-5, dist_func='euclidean', dist_eps=1e-4,
                    gamma_val=1e-4, aggr_func_rgb='softmax', aggr_func_alpha='prod',
